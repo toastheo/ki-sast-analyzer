@@ -1,6 +1,9 @@
 import argparse
 from dataclasses import dataclass
 
+from .input.sast_report_loader import SastReportLoader
+from .input.brakeman_adapter import BrakemanAdapter
+
 @dataclass
 class CliConfig:
   brakeman_report: str
@@ -58,10 +61,19 @@ def parse_args(argv: list[str] | None = None) -> CliConfig:
 def main(argv: list[str] | None = None) -> None:
   config = parse_args(argv)
 
-  # TODO: This is a test stub. Replace me later
+  loader = SastReportLoader()
+  adapter = BrakemanAdapter()
+
+  raw_report = loader.load_json(config.brakeman_report)
+  findings = adapter.from_report(raw_report)
+
   print("KI-SAST-Analyzer CLI gestartet.")
   print(f"  Brakeman-Report: {config.brakeman_report}")
   print(f"  Git-Root: {config.git_root}")
-  print(f"  MD-Report: {config.output_markdown}")
-  print(f"  JSON-Report: {config.output_json}")
-  print(f"  Fail-on-policy: {config.fail_on_policy_violation}")
+  print(f"  Findings: {len(findings)}")
+
+  for f in findings[:5]:
+    print(
+      f"- [{f.severity_normalized.value}] {f.file_path}:{f.line_start} "
+      f"rule={f.rule_id} category={f.category} msg={f.message[:80]!r}"
+    )

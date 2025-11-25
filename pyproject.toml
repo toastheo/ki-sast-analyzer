@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ki-sast-analyzer"
+version = "0.1.0"
+description = "KI-unterstützte Auswertung von SAST-Reports (z.B. Brakeman) für CI-Pipelines"
+authors = [
+  { name = "Theodor Weinreich", email = "weinreichth@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+ki-sast-analyzer = "ki_sast_analyzer.cli:main"

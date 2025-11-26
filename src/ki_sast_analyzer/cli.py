@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
+from .core.ranking_engine import RankingEngine
+from .output.report_generator import ReportGenerator
 
 @dataclass
 class CliConfig:
@@ -63,17 +65,24 @@ def main(argv: list[str] | None = None) -> None:
 
   loader = SastReportLoader()
   adapter = BrakemanAdapter()
+  ranking = RankingEngine()
+  reporter = ReportGenerator()
 
   raw_report = loader.load_json(config.brakeman_report)
   findings = adapter.from_report(raw_report)
 
+  prioritized = ranking.rank(findings)
+
+  if config.output_markdown:
+    reporter.write_markdown(prioritized, config.output_markdown)
+
+  if config.output_json:
+    reporter.write_json(prioritized, config.output_json)
+
   print("AI-SAST Analyzer CLI started.")
   print(f"  Brakeman-Report: {config.brakeman_report}")
-  print(f"  Git-Root: {config.git_root}")
   print(f"  Findings: {len(findings)}")
+  print(f"  MD-Report: {config.output_markdown}")
 
-  for f in findings[:5]:
-    print(
-      f"- [{f.severity_normalized.value}] {f.file_path}:{f.line_start} "
-      f"rule={f.rule_id} category={f.category} msg={f.message[:80]!r}"
-    )
+  if config.output_json:
+    print(f"  JSON-Report: {config.output_json}")

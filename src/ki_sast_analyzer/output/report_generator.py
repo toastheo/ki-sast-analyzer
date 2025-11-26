@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Iterable
+
+from ..models import Finding
+from ..core.ranking_engine import PrioritizedFinding
+
+class ReportGenerator:
+  """
+  Creates artifacts from the prioritized findings.
+  """
+
+  def write_markdown(
+    self,
+    prioritized: Iterable[PrioritizedFinding],
+    output_path: str | Path,
+  ) -> None:
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+    lines: list[str] = []
+    lines.append("# KI-SAST-Analyzer Report\n")
+    lines.append("")
+    lines.append(
+      "| Score | Severity | Tool | File | Line | Rule | Category | Message |"
+    )
+    lines.append(
+      "|-------|----------|------|------|------|------|----------|---------|"
+    )
+
+    for pf in prioritized:
+      f: Finding = pf.finding
+      score = pf.final_score if pf.final_score is not None else pf.base_score
+
+      file_str = str(f.file_path) if f.file_path is not None else ""
+      line_str = str(f.line_start) if f.line_start is not None else ""
+      msg_short = (f.message or "").replace("\n", " ")
+      if len(msg_short) > 80:
+        msg_short = msg_short[:77] + "..."
+
+      lines.append(
+        "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {msg} |".format(
+          score=score,
+          sev=f.severity_normalized.value,
+          tool=f.tool,
+          file=file_str,
+          line=line_str,
+          rule=f.rule_id or "",
+          cat=f.category or "",
+          msg=msg_short,
+        )
+      )
+
+    content = "\n".join(lines) + "\n"
+    p.write_text(content, encoding="utf-8")
+
+  def write_json(
+    self,
+    prioritized: Iterable[PrioritizedFinding],
+    output_path: str | Path,
+  ) -> None:
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+    data = []
+    for pf in prioritized:
+      f = pf.finding
+      entry = {
+        "finding": f.to_dict(),
+        "scores": {
+          "base_score": pf.base_score,
+          "ai_risk_score": pf.ai_risk_score,
+          "ai_fp_probability": pf.ai_fp_probability,
+          "final_score": pf.final_score,
+        },
+      }
+      data.append(entry)
+
+    p.write_text(json.dumps(data, indent=2), encoding="utf-8")

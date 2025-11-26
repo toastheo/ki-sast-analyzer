@@ -15,13 +15,13 @@ class CliConfig:
 def build_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser(
     prog="ki-sast-analyzer",
-    description="KI-unterstützte Auswertung von SAST-Reports (z.B. Brakeman) für CI-Pipelines",
+    description="AI-assisted evaluation of SAST reports (e.g., Brakeman) for CI pipelines",
   )
 
   parser.add_argument(
     "--brakeman-report",
     required=True,
-    help="Pfad zum Brakeman-SARIF-Report.",
+    help="Path to the Brakeman SARIF report.",
   )
   parser.add_argument(
     "--git-root",
@@ -31,17 +31,17 @@ def build_parser() -> argparse.ArgumentParser:
   parser.add_argument(
     "--output-markdown",
     default="ki-sast-report.md",
-    help="Pfad für den generierten Markdown-Report (Standart: ki-sast-report.md).",
+    help="Root directory of the Git repository (default: current directory)",
   )
   parser.add_argument(
     "--output-json",
     default=None,
-    help="Optionaler Pfad für einen JSON-Report mit allen Findings."
+    help="Optional path for a JSON report with all findings."
   )
   parser.add_argument(
     "--fail-on-policy-violation",
     action="store_true",
-    help="Setzt einen nicht-null Exit-Code, wenn die CI-Policy verletzt ist."
+    help="Sets a non-zero exit code if the CI policy is violated."
   )
 
   return parser
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> None:
   raw_report = loader.load_json(config.brakeman_report)
   findings = adapter.from_report(raw_report)
 
-  print("KI-SAST-Analyzer CLI gestartet.")
+  print("AI-SAST Analyzer CLI started.")
   print(f"  Brakeman-Report: {config.brakeman_report}")
   print(f"  Git-Root: {config.git_root}")
   print(f"  Findings: {len(findings)}")

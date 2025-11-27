@@ -45,6 +45,7 @@ class Finding:
   # git context
   commit_sha: Optional[str] = None
   author: Optional[str] = None
+  commit_date: Optional[str] = None
 
   def to_dict(self) -> dict:
     return {
@@ -62,4 +63,5 @@ class Finding:
       "link": self.link,
       "commit_sha": self.commit_sha,
       "author": self.author,
+      "commit_date": self.commit_date
     }

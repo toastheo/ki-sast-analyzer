@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
+from .input.git_context_fetcher import GitContextFetcher
 from .core.ranking_engine import RankingEngine
 from .output.report_generator import ReportGenerator
 
@@ -65,11 +66,14 @@ def main(argv: list[str] | None = None) -> None:
 
   loader = SastReportLoader()
   adapter = BrakemanAdapter()
+  git_ctx = GitContextFetcher(config.git_root)
   ranking = RankingEngine()
   reporter = ReportGenerator()
 
   raw_report = loader.load_json(config.brakeman_report)
   findings = adapter.from_report(raw_report)
+
+  git_ctx.enrich_findings(findings)
 
   prioritized = ranking.rank(findings)
 
@@ -83,6 +87,5 @@ def main(argv: list[str] | None = None) -> None:
   print(f"  Brakeman-Report: {config.brakeman_report}")
   print(f"  Findings: {len(findings)}")
   print(f"  MD-Report: {config.output_markdown}")
-
   if config.output_json:
     print(f"  JSON-Report: {config.output_json}")

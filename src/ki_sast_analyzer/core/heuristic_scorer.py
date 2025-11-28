@@ -11,6 +11,7 @@ from ..input.brakeman_codes import BRAKEMAN_CODE_SYMBOLS
 class HeuristicScore:
   finding_id: str
   base_score: float
+  normalized_score: float
 
 class HeuristicScorer:
   """
@@ -25,6 +26,14 @@ class HeuristicScorer:
     Severity.UNKNOWN: 0.0,
   }
 
+  MAX_TYPE_WEIGHT: float = 2.5
+  MAX_RECENCY_BONUS: float = 1.0
+  MAX_BASE_SCORE: float = (
+    SEVERITY_WEIGHTS[Severity.CRITICAL]
+    + MAX_TYPE_WEIGHT
+    + MAX_RECENCY_BONUS
+  )
+
   def __init__(self, now: Optional[datetime] = None) -> None:
     self._now = now or datetime.now(timezone.utc)
 
@@ -34,11 +43,24 @@ class HeuristicScorer:
     recency_bonus = self._recency_bonus(finding)
 
     base_score = severity_weight + type_weight + recency_bonus
+    normalized_score = self._normalize_base_score(base_score)
 
     return HeuristicScore(
       finding_id=finding.id,
-      base_score=base_score
+      base_score=base_score,
+      normalized_score=normalized_score,
     )
+
+  def _normalize_base_score(self, base_score: float) -> float:
+    "Map base_score to [0, 10]"
+    if base_score <= 0.0:
+      return 0.0
+
+    if self.MAX_BASE_SCORE <= 0.0:
+      return 0.0
+
+    normalized = (base_score / self.MAX_BASE_SCORE) * 10.0
+    return normalized
 
   def _rule_id_weight(self, finding: Finding) -> float:
     if not finding.rule_id:

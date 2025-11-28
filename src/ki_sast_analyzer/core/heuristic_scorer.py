@@ -28,10 +28,13 @@ class HeuristicScorer:
 
   MAX_TYPE_WEIGHT: float = 2.5
   MAX_RECENCY_BONUS: float = 1.0
+  MAX_CONTEXT_WEIGHT: float = 1.0
+
   MAX_BASE_SCORE: float = (
     SEVERITY_WEIGHTS[Severity.CRITICAL]
     + MAX_TYPE_WEIGHT
     + MAX_RECENCY_BONUS
+    + MAX_CONTEXT_WEIGHT
   )
 
   def __init__(self, now: Optional[datetime] = None) -> None:
@@ -41,8 +44,9 @@ class HeuristicScorer:
     severity_weight = self.SEVERITY_WEIGHTS.get(finding.severity_normalized, 0.0)
     type_weight = self._rule_id_weight(finding)
     recency_bonus = self._recency_bonus(finding)
+    context_weight = self._context_weight(finding)
 
-    base_score = severity_weight + type_weight + recency_bonus
+    base_score = severity_weight + type_weight + recency_bonus + context_weight
     normalized_score = self._normalize_base_score(base_score)
 
     return HeuristicScore(
@@ -52,7 +56,9 @@ class HeuristicScorer:
     )
 
   def _normalize_base_score(self, base_score: float) -> float:
-    "Map base_score to [0, 10]"
+    """
+    Map base_score to [0, 10]
+    """
     if base_score <= 0.0:
       return 0.0
 
@@ -61,6 +67,8 @@ class HeuristicScorer:
 
     normalized = (base_score / self.MAX_BASE_SCORE) * 10.0
     return normalized
+
+  # --- Rule / type weight ---
 
   def _rule_id_weight(self, finding: Finding) -> float:
     if not finding.rule_id:
@@ -148,6 +156,8 @@ class HeuristicScorer:
 
     return 0.0
 
+  # --- Recency / git metadata ---
+
   def _recency_bonus(self, finding: Finding) -> float:
     """
     Bonus depending on the age of the commit.
@@ -176,6 +186,51 @@ class HeuristicScorer:
     if age_days <= 30:
       return 0.5
     if age_days <= 180:
+      return 0.25
+
+    return 0.0
+
+  # --- context: path / rails structure ---
+
+  def _context_weight(self, finding: Finding) -> float:
+    """
+    Contextual weight based on file path (Rails conventions).
+    """
+
+    path = getattr(finding, "file_path", None)
+
+    if not path:
+      return 0.0
+
+    p = path.replace("\\", "/").lower()
+
+    if "/test/" in p or "/spec/" in p or "/features/" in p:
+      return -0.5
+
+    if "/app/controllers/" in p:
+      return 1.0
+
+    if (
+      "/app/models/" in p
+      or "/app/views/" in p
+      or "/app/channels/" in p
+      or "/app/mailers" in p
+    ):
+      return 0.75
+
+    if (
+      "/app/jobs/" in p
+      or "/app/services/" in p
+      or "/lib/" in p
+    ):
+      return 0.5
+
+    if (
+      "/config/" in p
+      or "/app/serializers/" in p
+      or "/app/presenters/" in p
+      or "/db/migrate/" in p
+    ):
       return 0.25
 
     return 0.0

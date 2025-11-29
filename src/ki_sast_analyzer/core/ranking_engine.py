@@ -10,6 +10,7 @@ from .heuristic_scorer import HeuristicScorer, HeuristicScore
 class PrioritizedFinding:
   finding: Finding
   base_score: float
+  normalized_score: float
   # TODO: placeholder for later ai-field
   ai_risk_score: float | None = None
   ai_fp_probability: float | None = None
@@ -33,7 +34,8 @@ class RankingEngine:
       pf = PrioritizedFinding(
         finding=f,
         base_score=h_score.base_score,
-        final_score=h_score.base_score,
+        normalized_score=h_score.normalized_score,
+        final_score=h_score.normalized_score,
       )
       prioritized.append(pf)
 

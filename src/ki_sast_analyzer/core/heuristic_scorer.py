@@ -198,11 +198,10 @@ class HeuristicScorer:
     """
 
     path = getattr(finding, "file_path", None)
-
     if not path:
       return 0.0
 
-    p = path.replace("\\", "/").lower()
+    p = path.as_posix().lower()
 
     if "/test/" in p or "/spec/" in p or "/features/" in p:
       return -0.5

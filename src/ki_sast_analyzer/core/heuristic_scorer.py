@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
+from pathlib import Path
 
 from ..models import Finding, Severity
 from ..input.brakeman_codes import BRAKEMAN_CODE_SYMBOLS
@@ -201,7 +202,10 @@ class HeuristicScorer:
     if not path:
       return 0.0
 
-    p = path.as_posix().lower()
+    if isinstance(path, Path):
+      p = path.as_posix().lower()
+    else:
+      p = str(path).replace("\\", "/").lower()
 
     if "/test/" in p or "/spec/" in p or "/features/" in p:
       return -0.5

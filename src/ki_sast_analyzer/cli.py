@@ -29,12 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
   parser.add_argument(
     "--git-root",
     default=".",
-    help="Root-Verzeichnis des Git Repos (Standart: aktuelles Verzeichnis)",
+    help="Root directory of the Git repository (default: current directory)",
   )
   parser.add_argument(
     "--output-markdown",
     default="ki-sast-report.md",
-    help="Root directory of the Git repository (default: current directory)",
+    help="Path for a markdown report with all findings (default: ki-sast-report.md)",
   )
   parser.add_argument(
     "--output-json",

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 class Severity(str, Enum):
-  UNKNOWN = "UNKOWN"
+  UNKNOWN = "UNKNOWN"
   LOW = "LOW"
   MEDIUM = "MEDIUM"
   HIGH = "HIGH"

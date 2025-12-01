@@ -24,10 +24,10 @@ class ReportGenerator:
     lines.append("# KI-SAST-Analyzer Report\n")
     lines.append("")
     lines.append(
-      "| Score | Severity | Tool | File | Line | Rule | Category | Message |"
+      "| Score | Severity | Tool | File | Line | Rule | Category | AI Risk | AI FP | Message |"
     )
     lines.append(
-      "|-------|----------|------|------|------|------|----------|---------|"
+      "|-------|----------|------|------|------|------|----------|---------|-------|---------|"
     )
 
     for pf in prioritized:
@@ -40,8 +40,15 @@ class ReportGenerator:
       if len(msg_short) > 80:
         msg_short = msg_short[:77] + "..."
 
+      ai_risk_str = (
+        f"{pf.ai_risk_score:.1f}" if pf.ai_risk_score is not None else ""
+      )
+      ai_fp_str = (
+        f"{pf.ai_fp_probability:.2f}" if pf.ai_fp_probability is not None else ""
+      )
+
       lines.append(
-        "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {msg} |".format(
+        "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {msg} |".format(
           score=score,
           sev=f.severity_normalized.value,
           tool=f.tool,
@@ -49,9 +56,15 @@ class ReportGenerator:
           line=line_str,
           rule=f.rule_id or "",
           cat=f.category or "",
+          ai_risk=ai_risk_str,
+          ai_fp=ai_fp_str,
           msg=msg_short,
         )
       )
+
+    lines.append("")
+    lines.append("_Score = final combined score (0-10), AI Risk = AI risk assessment (0-10), AI FP = estimated false positive probability(0-1)._")
+    lines.append("")
 
     content = "\n".join(lines) + "\n"
     p.write_text(content, encoding="utf-8")
@@ -70,10 +83,17 @@ class ReportGenerator:
       entry = {
         "finding": f.to_dict(),
         "scores": {
-          "base_score": pf.base_score,
-          "ai_risk_score": pf.ai_risk_score,
-          "ai_fp_probability": pf.ai_fp_probability,
-          "final_score": pf.final_score,
+          "heuristic": {
+            "base_score": pf.base_score,
+            "normalized_score": pf.normalized_score
+          },
+          "ai": {
+            "risk_score": pf.ai_risk_score,
+            "fp_probability": pf.ai_fp_probability,
+            "severity_label": pf.ai_severity_label,
+            "rationale": pf.ai_rationale,
+          },
+          "final_score": pf.final_score
         },
       }
       data.append(entry)

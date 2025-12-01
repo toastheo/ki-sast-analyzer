@@ -5,6 +5,8 @@ from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
 from .input.git_context_fetcher import GitContextFetcher
 from .core.ranking_engine import RankingEngine
+from .core.ai_scorer import DummyAiScorer
+from .core.risk_scoring_service import RiskScoringService
 from .output.report_generator import ReportGenerator
 
 @dataclass
@@ -67,7 +69,17 @@ def main(argv: list[str] | None = None) -> None:
   loader = SastReportLoader()
   adapter = BrakemanAdapter()
   git_ctx = GitContextFetcher(config.git_root)
-  ranking = RankingEngine()
+
+  ai_scorer = DummyAiScorer()
+  risk_scorer = RiskScoringService(
+    ai_scorer=ai_scorer,
+    # don't use dummy ai score
+    alpha=1.0,
+    beta=0.0,
+    gamma=0.0
+  )
+  ranking = RankingEngine(risk_scorer)
+
   reporter = ReportGenerator()
 
   raw_report = loader.load_json(config.brakeman_report)

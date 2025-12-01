@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from ..models import Finding
-from .heuristic_scorer import HeuristicScorer, HeuristicScore
+from .risk_scoring_service import RiskScoringService, RiskScoringResult
 
 @dataclass
 class PrioritizedFinding:
   finding: Finding
   base_score: float
   normalized_score: float
-  # TODO: placeholder for later ai-field
+
   ai_risk_score: float | None = None
   ai_fp_probability: float | None = None
+  ai_severity_label: str | None = None
+  ai_rationale: str | None = None
+
   final_score: float | None = None
 
 class RankingEngine:
@@ -21,21 +24,26 @@ class RankingEngine:
   Combines Heuristic (and later ai) and sorts Findings by relevance.
   """
 
-  def __init__(self, heuristic_scorer: HeuristicScorer | None = None) -> None:
-    self._heuristic_scorer = heuristic_scorer or HeuristicScorer()
+  def __init__(self, risk_scorer: Optional[RiskScoringService] = None) -> None:
+    self._risk_scorer = risk_scorer or RiskScoringService()
 
   def rank(self, findings: list[Finding]) -> List[PrioritizedFinding]:
+    results: List[RiskScoringResult] = self._risk_scorer.score_findings(findings)
     prioritized: List[PrioritizedFinding] = []
 
-    for f in findings:
-      h_score: HeuristicScore = self._heuristic_scorer.score(f)
+    for r in results:
+      heuristic = r.heuristic
+      ai_score = r.ai_score
 
-      # TODO: Consider AI results
       pf = PrioritizedFinding(
-        finding=f,
-        base_score=h_score.base_score,
-        normalized_score=h_score.normalized_score,
-        final_score=h_score.normalized_score,
+        finding=r.finding,
+        base_score=heuristic.base_score,
+        normalized_score=heuristic.normalized_score,
+        ai_risk_score=ai_score.risk_score if ai_score is not None else None,
+        ai_fp_probability=ai_score.fp_probability if ai_score is not None else None,
+        ai_severity_label=ai_score.severity_label if ai_score is not None else None,
+        ai_rationale=ai_score.rationale if ai_score is not None else None,
+        final_score=r.final_score,
       )
       prioritized.append(pf)
 

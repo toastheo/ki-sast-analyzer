@@ -5,7 +5,7 @@ from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
 from .input.git_context_fetcher import GitContextFetcher
 from .core.ranking_engine import RankingEngine
-from .core.ai_scorer import DummyAiScorer
+from .core.ai_scorer import OpenAiScorer
 from .core.risk_scoring_service import RiskScoringService
 from .output.report_generator import ReportGenerator
 
@@ -70,13 +70,17 @@ def main(argv: list[str] | None = None) -> None:
   adapter = BrakemanAdapter()
   git_ctx = GitContextFetcher(config.git_root)
 
-  ai_scorer = DummyAiScorer()
+  ai_scorer = OpenAiScorer()
+
+  # Mix heuristic + ai:
+  # alpha -> heuristic
+  # beta -> ai-risk
+  # gamma -> false positive probability
   risk_scorer = RiskScoringService(
     ai_scorer=ai_scorer,
-    # don't use dummy ai score
-    alpha=1.0,
-    beta=0.0,
-    gamma=0.0
+    alpha=0.6,
+    beta=0.6,
+    gamma=0.7,
   )
   ranking = RankingEngine(risk_scorer)
 

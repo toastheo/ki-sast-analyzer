@@ -77,7 +77,7 @@ class GitContextFetcher:
       elif line_str.startswith("author-mail "):
         author_email = line_str[len("author-mail ") :].strip("<>")
       elif line_str.startswith("author-time "):
-        ts_str = line_str[len("author_time ") :]
+        ts_str = line_str[len("author-time ") :]
         try:
           ts = int(ts_str)
           author_time = datetime.fromtimestamp(ts, tz=timezone.utc)

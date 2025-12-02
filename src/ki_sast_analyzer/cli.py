@@ -18,6 +18,7 @@ class CliConfig:
   output_markdown: str | None
   output_json: str | None
   fail_on_policy_violation: bool
+  ai_disabled: bool
 
 def build_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser(
@@ -43,12 +44,17 @@ def build_parser() -> argparse.ArgumentParser:
   parser.add_argument(
     "--output-json",
     default=None,
-    help="Optional path for a JSON report with all findings."
+    help="Optional path for a JSON report with all findings.",
   )
   parser.add_argument(
     "--fail-on-policy-violation",
     action="store_true",
-    help="Sets a non-zero exit code if the CI policy is violated."
+    help="Sets a non-zero exit code if the CI policy is violated.",
+  )
+  parser.add_argument(
+    "--ai-disabled",
+    action="store_true",
+    help="Disable AI scoring completely and use only heuristic scores.",
   )
 
   return parser
@@ -62,7 +68,8 @@ def parse_args(argv: list[str] | None = None) -> CliConfig:
     git_root=args.git_root,
     output_markdown=args.output_markdown,
     output_json=args.output_json,
-    fail_on_policy_violation=args.fail_on_policy_violation
+    fail_on_policy_violation=args.fail_on_policy_violation,
+    ai_disabled=args.ai_disabled,
   )
 
 POLICY_THRESHOLD = 8.0
@@ -84,7 +91,10 @@ def main(argv: list[str] | None = None) -> None:
   adapter = BrakemanAdapter()
   git_ctx = GitContextFetcher(config.git_root)
 
-  ai_scorer = OpenAiScorer()
+  if config.ai_disabled:
+    ai_scorer = None
+  else:
+    ai_scorer = OpenAiScorer()
 
   # Mix heuristic + ai:
   # alpha -> heuristic
@@ -127,6 +137,11 @@ def main(argv: list[str] | None = None) -> None:
   print(f"  MD-Report: {config.output_markdown}")
   if config.output_json:
     print(f"  JSON-Report: {config.output_json}")
+
+  if config.ai_disabled:
+    print("  AI scoring: DISABLED (heuristic only)")
+  else:
+    print("  AI scoring: ENABLED")
 
   if config.fail_on_policy_violation and _check_policy(prioritized):
     print(f"CI policy violated (score >= {POLICY_THRESHOLD}).", file=sys.stderr)

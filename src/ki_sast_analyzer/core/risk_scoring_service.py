@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from ..models import Finding
 from .heuristic_scorer import HeuristicScorer, HeuristicScore
@@ -39,8 +39,8 @@ class RiskScoringService:
     self._gamma = gamma
 
 
-  def score_findings(self, findings: Iterable[Finding]) -> List[RiskScoringResult]:
-    results: List[RiskScoringResult] = []
+  def score_findings(self, findings: Iterable[Finding]) -> list[RiskScoringResult]:
+    results: list[RiskScoringResult] = []
 
     for f in findings:
       heuristic = self._heuristic_scorer.score(f)

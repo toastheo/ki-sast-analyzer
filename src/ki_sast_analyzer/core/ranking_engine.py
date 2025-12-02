@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from ..models import Finding
 from .risk_scoring_service import RiskScoringService, RiskScoringResult
@@ -27,9 +27,9 @@ class RankingEngine:
   def __init__(self, risk_scorer: Optional[RiskScoringService] = None) -> None:
     self._risk_scorer = risk_scorer or RiskScoringService()
 
-  def rank(self, findings: list[Finding]) -> List[PrioritizedFinding]:
-    results: List[RiskScoringResult] = self._risk_scorer.score_findings(findings)
-    prioritized: List[PrioritizedFinding] = []
+  def rank(self, findings: list[Finding]) -> list[PrioritizedFinding]:
+    results: list[RiskScoringResult] = self._risk_scorer.score_findings(findings)
+    prioritized: list[PrioritizedFinding] = []
 
     for r in results:
       heuristic = r.heuristic

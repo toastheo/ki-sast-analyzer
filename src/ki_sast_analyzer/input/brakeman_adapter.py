@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable, List
+from typing import Any, Iterable
 
 from ..models import Finding, Severity
 
@@ -12,10 +12,10 @@ class BrakemanAdapter:
 
   TOOL_NAME = "brakeman"
 
-  def from_report(self, raw_report: dict[str, Any]) -> List[Finding]:
+  def from_report(self, raw_report: dict[str, Any]) -> list[Finding]:
     warnings: Iterable[dict[str, Any]] = raw_report.get("warnings", []) or []
 
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     for w in warnings:
       finding = self._warning_to_finding(w)
       findings.append(finding)

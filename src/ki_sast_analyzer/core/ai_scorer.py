@@ -9,7 +9,7 @@ import logging
 import os
 
 import openai
-from openai import OpenAI
+from openai import OpenAI, APIError
 
 from ..models import Finding
 from .heuristic_scorer import HeuristicScore
@@ -52,7 +52,9 @@ class AiScorer(ABC):
     raise NotImplementedError
 
 class DummyAiScorer(AiScorer):
-  "Dummy Implementation without real AI."
+  """
+  Dummy Implementation without real AI.
+  """
 
   def score(self, finding: Finding, heuristic: HeuristicScore) -> AiScore:
     base = heuristic.normalized_score
@@ -117,7 +119,7 @@ class OpenAiScorer(AiScorer):
 
     except(json.JSONDecodeError, KeyError, ValueError) as e:
       logger.warning("Failed to parse OpenAI, response, falling back to heuristic: %s", e)
-    except openai.APIError as e:
+    except APIError as e:
       logger.warning("OpenAI API error, falling back to heuristic: %s", e)
     except Exception as e:
       logger.warning("Unexpected error in OpenAiScorer, falling back to heuristic: %s", e)
@@ -197,6 +199,7 @@ class OpenAiScorer(AiScorer):
       model=self._model,
       temperature=self._temperature,
       response_format={"type": "json_object"},
+      max_tokens=300,
       messages=[
         {
           "role": "system",

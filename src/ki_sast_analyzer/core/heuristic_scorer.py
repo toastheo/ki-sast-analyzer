@@ -60,13 +60,14 @@ class HeuristicScorer:
     """
     Map base_score to [0, 10]
     """
-    if base_score <= 0.0:
-      return 0.0
-
-    if self.MAX_BASE_SCORE <= 0.0:
+    if base_score <= 0.0 or self.MAX_BASE_SCORE <= 0.0:
       return 0.0
 
     normalized = (base_score / self.MAX_BASE_SCORE) * 10.0
+    if normalized < 0.0:
+      return 0.0
+    if normalized > 10.0:
+      return 10.0
     return normalized
 
   # --- Rule / type weight ---

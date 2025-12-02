@@ -42,7 +42,7 @@ class BrakemanAdapter:
       tool=self.TOOL_NAME,
       rule_id=str(warning_code) if warning_code is not None else None,
       category=warning.get("warning_type"),
-      severity_raw=warning.get("confidence"),
+      severity_raw=str(warning.get("confidence")) if warning.get("confidence") is not None else None,
       severity_normalized=severity_norm,
       file_path=Path(file_path) if file_path else None,
       line_start=int(line) if line is not None else None,

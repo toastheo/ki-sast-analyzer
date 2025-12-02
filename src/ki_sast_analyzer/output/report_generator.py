@@ -63,7 +63,9 @@ class ReportGenerator:
       )
 
     lines.append("")
-    lines.append("_Score = final combined score (0-10), AI Risk = AI risk assessment (0-10), AI FP = estimated false positive probability(0-1)._")
+    lines.append("_Score = final combined score (0-10), "
+                 "AI Risk = AI risk assessment (0-10), "
+                 "AI FP = estimated false positive probability (0-1)._")
     lines.append("")
 
     content = "\n".join(lines) + "\n"
@@ -98,4 +100,4 @@ class ReportGenerator:
       }
       data.append(entry)
 
-    p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

@@ -96,7 +96,7 @@ class GitContextFetcher:
 
   def enrich_findings(self, findings: list[Finding]) -> None:
     """
-    Mutates the findings in-place abd adds commit_sha, author and commit_date
+    Mutates the findings in-place and adds commit_sha, author and commit_date
     """
     for f in findings:
       if f.file_path is None or f.line_start is None:

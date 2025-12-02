@@ -100,7 +100,15 @@ def main(argv: list[str] | None = None) -> None:
 
   reporter = ReportGenerator()
 
-  raw_report = loader.load_json(config.brakeman_report)
+  try:
+    raw_report = loader.load_json(config.brakeman_report)
+  except FileNotFoundError as e:
+    print(f"Error: {e}", file=sys.stderr)
+    raise SystemExit(2)
+  except OSError as e:
+    print(f"Error reading SAST report: {e}", file=sys.stderr)
+    raise SystemExit(3)
+
   findings = adapter.from_report(raw_report)
 
   git_ctx.enrich_findings(findings)

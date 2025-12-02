@@ -5,6 +5,7 @@ from typing import Optional
 
 from ..models import Finding
 from .risk_scoring_service import RiskScoringService, RiskScoringResult
+from .heuristic_scorer import HeuristicScorer
 
 @dataclass
 class PrioritizedFinding:
@@ -26,6 +27,11 @@ class RankingEngine:
 
   def __init__(self, risk_scorer: Optional[RiskScoringService] = None) -> None:
     self._risk_scorer = risk_scorer or RiskScoringService()
+
+  def _severity_weight(self, pf: PrioritizedFinding) -> float:
+    return HeuristicScorer.SEVERITY_WEIGHTS.get(
+      pf.finding.severity_normalized, 0.0
+    )
 
   def rank(self, findings: list[Finding]) -> list[PrioritizedFinding]:
     results: list[RiskScoringResult] = self._risk_scorer.score_findings(findings)
@@ -50,7 +56,7 @@ class RankingEngine:
     prioritized.sort(
       key=lambda pf: (
         -(pf.final_score or 0.0),
-        pf.finding.severity_normalized.value,
+        -self._severity_weight(pf),
         str(pf.finding.file_path or ""),
         pf.finding.line_start or 0,
       )

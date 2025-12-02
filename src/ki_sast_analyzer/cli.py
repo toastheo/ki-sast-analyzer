@@ -1,4 +1,5 @@
 import argparse
+import sys
 from dataclasses import dataclass
 
 from .input.sast_report_loader import SastReportLoader
@@ -7,6 +8,7 @@ from .input.git_context_fetcher import GitContextFetcher
 from .core.ranking_engine import RankingEngine
 from .core.ai_scorer import OpenAiScorer
 from .core.risk_scoring_service import RiskScoringService
+from .core.ranking_engine import PrioritizedFinding
 from .output.report_generator import ReportGenerator
 
 @dataclass
@@ -63,6 +65,18 @@ def parse_args(argv: list[str] | None = None) -> CliConfig:
     fail_on_policy_violation=args.fail_on_policy_violation
   )
 
+POLICY_THRESHOLD = 8.0
+
+def _check_policy(prioritized: list[PrioritizedFinding]) -> bool:
+  """
+  Returns True if the CI policy is violated.
+  """
+  for pf in prioritized:
+    score = pf.final_score if pf.final_score is not None else pf.base_score
+    if score >= POLICY_THRESHOLD:
+      return True
+  return False
+
 def main(argv: list[str] | None = None) -> None:
   config = parse_args(argv)
 
@@ -105,3 +119,7 @@ def main(argv: list[str] | None = None) -> None:
   print(f"  MD-Report: {config.output_markdown}")
   if config.output_json:
     print(f"  JSON-Report: {config.output_json}")
+
+  if config.fail_on_policy_violation and _check_policy(prioritized):
+    print(f"CI policy violated (score >= {POLICY_THRESHOLD}).", file=sys.stderr)
+    raise SystemExit(1)

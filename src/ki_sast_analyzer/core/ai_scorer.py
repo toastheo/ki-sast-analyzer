@@ -95,6 +95,39 @@ class OpenAiScorer(AiScorer):
     """
     Calls the LLM and maps the result to AiScore.
     """
+    try:
+      payload = self._build_prompt_payload(finding, heuristic)
+      raw_json = self._call_model(payload)
+      data = json.loads(raw_json)
+
+      risk_score = float(data.get("risk_score", heuristic.normalized_score))
+      fp_prob = float(data.get("fp_probability", 0.5))
+      severity_label = data.get("severity_label") or finding.severity_normalized.value
+      rationale = data.get("rationale") or "No rationale provided by AI."
+
+      risk_score = max(0.0, min(10.0, risk_score))
+      fp_prob = max(0.0, min(1.0, fp_prob))
+
+      return AiScore(
+        risk_score=risk_score,
+        fp_probability=fp_prob,
+        severity_label=severity_label,
+        rationale=rationale,
+      )
+
+    except(json.JSONDecodeError, KeyError, ValueError) as e:
+      logger.warning("Failed to parse OpenAI, response, falling back to heuristic: %s", e)
+    except openai.APIError as e:
+      logger.warning("OpenAI API error, falling back to heuristic: %s", e)
+    except Exception as e:
+      logger.warning("Unexpected error in OpenAiScorer, falling back to heuristic: %s", e)
+
+    return AiScore(
+      risk_score=heuristic.normalized_score,
+      fp_probability=0.5,
+      severity_label=finding.severity_normalized.value,
+      rationale="Fallback: Heuristic score only (OpenAI call failed).",
+    )
 
   # --- Helper Methods ---
 

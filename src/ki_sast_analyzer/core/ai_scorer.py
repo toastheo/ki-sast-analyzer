@@ -197,9 +197,7 @@ class OpenAiScorer(AiScorer):
     """
     completion = self._client.chat.completions.create(
       model=self._model,
-      temperature=self._temperature,
       response_format={"type": "json_object"},
-      max_tokens=300,
       messages=[
         {
           "role": "system",

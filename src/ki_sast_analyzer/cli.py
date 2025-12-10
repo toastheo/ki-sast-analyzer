@@ -1,6 +1,7 @@
 import argparse
 import sys
 from dataclasses import dataclass
+from typing import Optional
 
 from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
@@ -19,6 +20,7 @@ class CliConfig:
   output_json: str | None
   fail_on_policy_violation: bool
   ai_disabled: bool
+  context_files: list[str]
 
 def build_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser(
@@ -56,6 +58,15 @@ def build_parser() -> argparse.ArgumentParser:
     action="store_true",
     help="Disable AI scoring completely and use only heuristic scores.",
   )
+  parser.add_argument(
+    "--context-file",
+    action="append",
+    default=[],
+    help=(
+      "Additional project files to include as AI context. "
+      "Can be specified multiple times."
+    ),
+  )
 
   return parser
 
@@ -70,6 +81,7 @@ def parse_args(argv: list[str] | None = None) -> CliConfig:
     output_json=args.output_json,
     fail_on_policy_violation=args.fail_on_policy_violation,
     ai_disabled=args.ai_disabled,
+    context_files=args.context_file,
   )
 
 POLICY_THRESHOLD = 8.0
@@ -94,7 +106,10 @@ def main(argv: list[str] | None = None) -> None:
   if config.ai_disabled:
     ai_scorer = None
   else:
-    ai_scorer = OpenAiScorer()
+    ai_scorer = OpenAiScorer(
+      project_root=config.git_root,
+      context_files=config.context_files,
+    )
 
   # Mix heuristic + ai:
   # alpha -> heuristic
@@ -106,8 +121,8 @@ def main(argv: list[str] | None = None) -> None:
     beta=0.6,
     gamma=0.7,
   )
-  ranking = RankingEngine(risk_scorer)
 
+  ranking = RankingEngine(risk_scorer)
   reporter = ReportGenerator()
 
   try:
@@ -123,6 +138,9 @@ def main(argv: list[str] | None = None) -> None:
 
   git_ctx.enrich_findings(findings)
 
+  print("AI-SAST Analyzer CLI started.")
+  if not config.ai_disabled:
+    print("Running AI ...")
   prioritized = ranking.rank(findings)
 
   if config.output_markdown:
@@ -131,7 +149,6 @@ def main(argv: list[str] | None = None) -> None:
   if config.output_json:
     reporter.write_json(prioritized, config.output_json)
 
-  print("AI-SAST Analyzer CLI started.")
   print(f"  Brakeman-Report: {config.brakeman_report}")
   print(f"  Findings: {len(findings)}")
   print(f"  MD-Report: {config.output_markdown}")

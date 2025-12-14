@@ -30,7 +30,7 @@ class RankingEngine:
 
   def _severity_weight(self, pf: PrioritizedFinding) -> float:
     return HeuristicScorer.SEVERITY_WEIGHTS.get(
-      pf.finding.severity_normalized, 0.0
+      pf.finding.confidence_normalized, 0.0
     )
 
   def rank(self, findings: list[Finding]) -> list[PrioritizedFinding]:

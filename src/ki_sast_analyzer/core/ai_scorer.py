@@ -74,7 +74,7 @@ class DummyAiScorer(AiScorer):
     return AiScore(
       risk_score=base,
       fp_probability=fp_prob,
-      severity_label=finding.severity_normalized.value,
+      severity_label=finding.confidence_normalized.value,
       rationale="Dummy AI: Derives the score directly from the heuristic model."
     )
 
@@ -117,7 +117,7 @@ class OpenAiScorer(AiScorer):
 
       risk_score = float(data.get("risk_score", heuristic.normalized_score))
       fp_prob = float(data.get("fp_probability", 0.5))
-      severity_label = data.get("severity_label") or finding.severity_normalized.value
+      severity_label = data.get("severity_label") or finding.confidence_normalized.value
       rationale = data.get("rationale") or "No rationale provided by AI."
 
       risk_score = max(0.0, min(10.0, risk_score))
@@ -140,7 +140,7 @@ class OpenAiScorer(AiScorer):
     return AiScore(
       risk_score=heuristic.normalized_score,
       fp_probability=0.5,
-      severity_label=finding.severity_normalized.value,
+      severity_label=finding.confidence_normalized.value,
       rationale="Fallback: Heuristic score only (OpenAI call failed).",
     )
 
@@ -185,8 +185,8 @@ class OpenAiScorer(AiScorer):
     parts.append(f"- Tool: {finding.tool}")
     parts.append(f"- Rule ID: {finding.rule_id}")
     parts.append(f"- Category: {finding.category}")
-    parts.append(f"- Tool severity_raw / confidence: {finding.severity_raw}")
-    parts.append(f"- Normalized severity: {finding.severity_normalized.value}")
+    parts.append(f"- Tool confidence: {finding.confidence_raw}")
+    parts.append(f"- Normalized confidence: {finding.confidence_normalized.value}")
     parts.append(f"- Heuristic normalized_score (0-10): {heuristic.normalized_score:.2f}")
     parts.append(f"- File path: {finding.file_path}")
     parts.append(f"- Line start: {finding.line_start}")

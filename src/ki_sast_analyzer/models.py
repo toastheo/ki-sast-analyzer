@@ -29,8 +29,8 @@ class Finding:
   category: Optional[str]
 
   # Severity
-  severity_raw: Optional[str]
-  severity_normalized: Severity
+  confidence_raw: Optional[str]
+  confidence_normalized: Severity
 
   # Code context
   file_path: Optional[Path]
@@ -53,8 +53,8 @@ class Finding:
       "tool": self.tool,
       "rule_id": self.rule_id,
       "category": self.category,
-      "severity_raw": self.severity_raw,
-      "severity_normalized": self.severity_normalized.value,
+      "severity_raw": self.confidence_raw,
+      "severity_normalized": self.confidence_normalized.value,
       "file_path": str(self.file_path) if self.file_path is not None else None,
       "line_start": self.line_start,
       "line_end": self.line_end,

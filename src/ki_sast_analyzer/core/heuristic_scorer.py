@@ -42,12 +42,12 @@ class HeuristicScorer:
     self._now = now or datetime.now(timezone.utc)
 
   def score(self, finding: Finding) -> HeuristicScore:
-    severity_weight = self.SEVERITY_WEIGHTS.get(finding.severity_normalized, 0.0)
+    confidence_weight = self.SEVERITY_WEIGHTS.get(finding.confidence_normalized, 0.0)
     type_weight = self._rule_id_weight(finding)
     recency_bonus = self._recency_bonus(finding)
     context_weight = self._context_weight(finding)
 
-    base_score = severity_weight + type_weight + recency_bonus + context_weight
+    base_score = confidence_weight + type_weight + recency_bonus + context_weight
     normalized_score = self._normalize_base_score(base_score)
 
     return HeuristicScore(

@@ -59,7 +59,7 @@ class ReportGenerator:
       lines.append(
         "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {msg} |".format(
           score=score,
-          sev=self._md_escape(f.severity_normalized.value),
+          sev=self._md_escape(f.confidence_normalized.value),
           tool=self._md_escape(f.tool),
           file=self._md_escape(file_str),
           line=line_str,

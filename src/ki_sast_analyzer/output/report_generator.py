@@ -12,6 +12,15 @@ class ReportGenerator:
   Creates artifacts from the prioritized findings.
   """
 
+  @staticmethod
+  def _md_escape(text: str) -> str:
+    return(
+      (text or "")
+      .replace("\r\n", "\n").replace("\r", "\n")
+      .replace("|", r"\|")
+      .replace("\n", " ")
+    )
+
   def write_markdown(
     self,
     prioritized: Iterable[PrioritizedFinding],
@@ -32,11 +41,11 @@ class ReportGenerator:
 
     for pf in prioritized:
       f: Finding = pf.finding
-      score = pf.final_score if pf.final_score is not None else pf.base_score
+      score = pf.final_score
 
       file_str = str(f.file_path) if f.file_path is not None else ""
       line_str = str(f.line_start) if f.line_start is not None else ""
-      msg_short = (f.message or "").replace("\n", " ")
+      msg_short = self._md_escape(f.message or "")
       if len(msg_short) > 80:
         msg_short = msg_short[:77] + "..."
 
@@ -50,12 +59,12 @@ class ReportGenerator:
       lines.append(
         "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {msg} |".format(
           score=score,
-          sev=f.severity_normalized.value,
-          tool=f.tool,
-          file=file_str,
+          sev=self._md_escape(f.severity_normalized.value),
+          tool=self._md_escape(f.tool),
+          file=self._md_escape(file_str),
           line=line_str,
-          rule=f.rule_id or "",
-          cat=f.category or "",
+          rule=self._md_escape(f.rule_id or ""),
+          cat=self._md_escape(f.category or ""),
           ai_risk=ai_risk_str,
           ai_fp=ai_fp_str,
           msg=msg_short,

@@ -117,9 +117,9 @@ def main(argv: list[str] | None = None) -> None:
   # gamma -> false positive probability
   risk_scorer = RiskScoringService(
     ai_scorer=ai_scorer,
-    alpha=0.6,
-    beta=0.6,
-    gamma=0.7,
+    alpha=0.4,
+    beta=0.5,
+    gamma=0.6,
   )
 
   ranking = RankingEngine(risk_scorer)

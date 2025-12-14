@@ -55,7 +55,7 @@ class RankingEngine:
 
     prioritized.sort(
       key=lambda pf: (
-        -(pf.final_score or 0.0),
+        -pf.final_score,
         -self._severity_weight(pf),
         str(pf.finding.file_path or ""),
         pf.finding.line_start or 0,

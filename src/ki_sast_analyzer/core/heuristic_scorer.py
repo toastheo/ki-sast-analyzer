@@ -218,7 +218,7 @@ class HeuristicScorer:
       "/app/models/" in p
       or "/app/views/" in p
       or "/app/channels/" in p
-      or "/app/mailers" in p
+      or "/app/mailers/" in p
     ):
       return 0.75
 

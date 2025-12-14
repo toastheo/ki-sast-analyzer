@@ -1,15 +1,13 @@
 import argparse
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 from .input.sast_report_loader import SastReportLoader
 from .input.brakeman_adapter import BrakemanAdapter
 from .input.git_context_fetcher import GitContextFetcher
-from .core.ranking_engine import RankingEngine
+from .core.ranking_engine import RankingEngine, PrioritizedFinding
 from .core.ai_scorer import OpenAiScorer
 from .core.risk_scoring_service import RiskScoringService
-from .core.ranking_engine import PrioritizedFinding
 from .output.report_generator import ReportGenerator
 
 @dataclass
@@ -91,7 +89,7 @@ def _check_policy(prioritized: list[PrioritizedFinding]) -> bool:
   Returns True if the CI policy is violated.
   """
   for pf in prioritized:
-    score = pf.final_score if pf.final_score is not None else pf.base_score
+    score = pf.final_score
     if score >= POLICY_THRESHOLD:
       return True
   return False

@@ -17,7 +17,7 @@ class Finding:
   """
   Normalized representation of a SAST finding.
 
-  Deliberately chosen to be generic so that othertools
+  Deliberately chosen to be generic so that other tools
   besides Brakeman can be integrated in the future.
   """
 

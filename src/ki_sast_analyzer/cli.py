@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
   parser.add_argument(
     "--brakeman-report",
     required=True,
-    help="Path to the Brakeman SARIF report.",
+    help="Path to the Brakeman JSON report.",
   )
   parser.add_argument(
     "--git-root",

@@ -88,11 +88,7 @@ def _check_policy(prioritized: list[PrioritizedFinding]) -> bool:
   """
   Returns True if the CI policy is violated.
   """
-  for pf in prioritized:
-    score = pf.final_score
-    if score >= POLICY_THRESHOLD:
-      return True
-  return False
+  return any(pf.final_score >= POLICY_THRESHOLD for pf in prioritized)
 
 def main(argv: list[str] | None = None) -> None:
   config = parse_args(argv)

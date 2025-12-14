@@ -13,12 +13,12 @@ class PrioritizedFinding:
   base_score: float
   normalized_score: float
 
+  final_score: float
+
   ai_risk_score: float | None = None
   ai_fp_probability: float | None = None
   ai_severity_label: str | None = None
   ai_rationale: str | None = None
-
-  final_score: float | None = None
 
 class RankingEngine:
   """

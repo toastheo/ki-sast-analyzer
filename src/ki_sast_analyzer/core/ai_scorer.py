@@ -86,7 +86,6 @@ class OpenAiScorer(AiScorer):
   def __init__(
     self,
     model: str | None = None,
-    temperature: float = 0.1,
     max_code_chars: int = 2000,
     project_root: str | Path | None = None,
     context_files: Optional[Iterable[str]] = None,
@@ -98,7 +97,6 @@ class OpenAiScorer(AiScorer):
       or os.environ.get("KISAST_OPENAI_MODEL")
       or "gpt-5-mini"
     )
-    self._temperature = temperature
     self._max_code_chars = max_code_chars
 
     self._project_root = Path(project_root) if project_root is not None else Path(".")
@@ -240,17 +238,20 @@ class OpenAiScorer(AiScorer):
 
   def _load_context_files(self, files: Iterable[str]) -> None:
     for f in files:
-      p = self._project_root / f
+      p = (self._project_root / f).resolve()
       try:
-        content = p.read_text(encoding="utf-8")
+        content = p.read_text(encoding="utf-8", errors="replace")
       except OSError:
         logger.warning("Could not read context file '%s'", p)
         continue
 
-    if len(content) > self._max_context_chars_per_file:
-      content = content[: self._max_context_chars_per_file] + "\n# ... truncated ..."
+      if len(content) > self._max_context_chars_per_file:
+        content = (
+          content[: self._max_context_chars_per_file]
+          + "\n# ... truncated ..."
+        )
 
-    self._context_files.append(AiContextFile(path=p, content=content))
+      self._context_files.append(AiContextFile(path=p, content=content))
 
   def _build_context_files_section(self) -> str:
     if not self._context_files:

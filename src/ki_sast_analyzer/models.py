@@ -12,6 +12,12 @@ class Severity(str, Enum):
   HIGH = "HIGH"
   CRITICAL = "CRITICAL"
 
+class Confidence(str, Enum):
+  UNKNOWN = "UNKNOWN"
+  LOW = "LOW"
+  MEDIUM = "MEDIUM"
+  HIGH = "HIGH"
+
 @dataclass
 class Finding:
   """
@@ -28,9 +34,9 @@ class Finding:
   rule_id: Optional[str]
   category: Optional[str]
 
-  # Severity
+  # Tool Confidence
   confidence_raw: Optional[str]
-  confidence_normalized: Severity
+  confidence: Confidence
 
   # Code context
   file_path: Optional[Path]
@@ -53,8 +59,10 @@ class Finding:
       "tool": self.tool,
       "rule_id": self.rule_id,
       "category": self.category,
-      "confidence_raw": self.confidence_raw,
-      "confidence_normalized": self.confidence_normalized.value,
+      "tool_confidence": {
+        "raw": self.confidence_raw,
+        "normalized": self.confidence.value,
+      },
       "file_path": str(self.file_path) if self.file_path is not None else None,
       "line_start": self.line_start,
       "line_end": self.line_end,

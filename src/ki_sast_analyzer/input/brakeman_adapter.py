@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable
 
-from ..models import Finding, Severity
+from ..models import Finding, Confidence
 
 class BrakemanAdapter:
   """
@@ -14,13 +14,7 @@ class BrakemanAdapter:
 
   def from_report(self, raw_report: dict[str, Any]) -> list[Finding]:
     warnings: Iterable[dict[str, Any]] = raw_report.get("warnings", []) or []
-
-    findings: list[Finding] = []
-    for w in warnings:
-      finding = self._warning_to_finding(w)
-      findings.append(finding)
-
-    return findings
+    return [self._warning_to_finding(w) for w in warnings]
 
   def _warning_to_finding(self, warning: dict[str, Any]) -> Finding:
     fingerprint = warning.get("fingerprint")
@@ -28,14 +22,9 @@ class BrakemanAdapter:
     file_path = warning.get("file")
     line = warning.get("line")
 
-    if fingerprint:
-      finding_id = fingerprint
-    else:
-      finding_id = f"{self.TOOL_NAME}-{warning_code}-{file_path}-{line}"
+    finding_id = fingerprint or f"{self.TOOL_NAME}-{warning_code}-{file_path}-{line}"
 
-    severity_norm = self._map_confidence_to_severity(
-      str(warning.get("confidence", "")).lower()
-    )
+    conf = self._map_confidence(str(warning.get("confidence", "")).lower())
 
     return Finding(
       id=finding_id,
@@ -43,7 +32,7 @@ class BrakemanAdapter:
       rule_id=str(warning_code) if warning_code is not None else None,
       category=warning.get("warning_type"),
       confidence_raw=str(warning.get("confidence")) if warning.get("confidence") is not None else None,
-      confidence_normalized=severity_norm,
+      confidence=conf,
       file_path=Path(file_path) if file_path else None,
       line_start=int(line) if line is not None else None,
       line_end=int(line) if line is not None else None,
@@ -53,11 +42,11 @@ class BrakemanAdapter:
     )
 
   @staticmethod
-  def _map_confidence_to_severity(confidence: str) -> Severity:
+  def _map_confidence(confidence: str) -> Confidence:
     if confidence == "high":
-      return Severity.HIGH
+      return Confidence.HIGH
     if confidence == "medium":
-      return Severity.MEDIUM
+      return Confidence.MEDIUM
     if confidence == "weak":
-      return Severity.LOW
-    return Severity.UNKNOWN
+      return Confidence.LOW
+    return Confidence.UNKNOWN

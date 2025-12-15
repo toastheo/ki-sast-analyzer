@@ -5,12 +5,13 @@ from datetime import datetime, timezone
 from typing import Optional
 from pathlib import Path
 
-from ..models import Finding, Severity
+from ..models import Finding, Severity, Confidence
 from ..input.brakeman_codes import BRAKEMAN_CODE_SYMBOLS
 
 @dataclass
 class HeuristicScore:
   finding_id: str
+  severity: Severity
   base_score: float
   normalized_score: float
 
@@ -27,34 +28,62 @@ class HeuristicScorer:
     Severity.UNKNOWN: 0.0,
   }
 
+  CONFIDENCE_ADJUST: dict[Confidence, float] = {
+    Confidence.HIGH: 0.5,
+    Confidence.MEDIUM: 0.0,
+    Confidence.LOW: -0.5,
+    Confidence.UNKNOWN: 0.0,
+  }
+
   MAX_TYPE_WEIGHT: float = 2.5
   MAX_RECENCY_BONUS: float = 1.0
   MAX_CONTEXT_WEIGHT: float = 1.0
+  MAX_CONFIDENCE_ADJUST: float = 0.5
 
   MAX_BASE_SCORE: float = (
     SEVERITY_WEIGHTS[Severity.CRITICAL]
     + MAX_TYPE_WEIGHT
     + MAX_RECENCY_BONUS
     + MAX_CONTEXT_WEIGHT
+    + MAX_CONFIDENCE_ADJUST
   )
 
   def __init__(self, now: Optional[datetime] = None) -> None:
     self._now = now or datetime.now(timezone.utc)
 
   def score(self, finding: Finding) -> HeuristicScore:
-    confidence_weight = self.SEVERITY_WEIGHTS.get(finding.confidence_normalized, 0.0)
+    sev = self._estimate_severity(finding)
+
+    severity_weight = self.SEVERITY_WEIGHTS.get(sev, 0.0)
     type_weight = self._rule_id_weight(finding)
     recency_bonus = self._recency_bonus(finding)
     context_weight = self._context_weight(finding)
+    confidence_adj = self.CONFIDENCE_ADJUST.get(finding.confidence, 0.0)
 
-    base_score = confidence_weight + type_weight + recency_bonus + context_weight
+    base_score = severity_weight + type_weight + recency_bonus + context_weight + confidence_adj
     normalized_score = self._normalize_base_score(base_score)
 
     return HeuristicScore(
       finding_id=finding.id,
+      severity=sev,
       base_score=base_score,
       normalized_score=normalized_score,
     )
+
+  def _estimate_severity(self, finding: Finding) -> Severity:
+    """
+    Derive severity from rule/type (not from tool confidence).
+    """
+    w = self._rule_id_weight(finding)
+    if w >= 2.5:
+      return Severity.CRITICAL
+    if w >= 1.5:
+      return Severity.HIGH
+    if w >= 1.0:
+      return Severity.MEDIUM
+    if finding.rule_id is None and finding.category is None:
+      return Severity.UNKNOWN
+    return Severity.LOW
 
   def _normalize_base_score(self, base_score: float) -> float:
     """

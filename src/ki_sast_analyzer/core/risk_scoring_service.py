@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from ..models import Finding
+from ..models import Finding, Severity
 from .heuristic_scorer import HeuristicScorer, HeuristicScore
 from .ai_scorer import AiScorer, AiScore
 
@@ -17,6 +17,7 @@ class RiskScoringResult:
   heuristic: HeuristicScore
   ai_score: Optional[AiScore]
   final_score: float
+  final_severity: Severity
 
 class RiskScoringService:
   """
@@ -44,21 +45,22 @@ class RiskScoringService:
 
     for f in findings:
       heuristic = self._heuristic_scorer.score(f)
-      ai_score: Optional[AiScore] = None
-
-      if self._ai_scorer is not None:
-        ai_score = self._ai_scorer.score(f, heuristic)
-
+      ai_score: Optional[AiScore] = self._ai_scorer.score(f, heuristic) if self._ai_scorer else None
       final_score = self._combine_scores(heuristic, ai_score)
 
-      results.append(
-        RiskScoringResult(
-          finding=f,
-          heuristic=heuristic,
-          ai_score=ai_score,
-          final_score=final_score
-        )
+      final_sev = (
+        ai_score.severity
+        if (ai_score is not None and ai_score.severity is not None)
+        else heuristic.severity
       )
+
+      results.append(RiskScoringResult(
+        finding=f,
+        heuristic=heuristic,
+        ai_score=ai_score,
+        final_score=final_score,
+        final_severity=final_sev,
+      ))
 
     return results
 

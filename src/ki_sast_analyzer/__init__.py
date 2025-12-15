@@ -1,3 +1,3 @@
-from .models import Finding, Severity
+from .models import Finding, Severity, Confidence
 
-__all__ = ["Finding", "Severity"]
+__all__ = ["Finding", "Severity", "Confidence"]

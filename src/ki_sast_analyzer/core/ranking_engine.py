@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ..models import Finding
-from .risk_scoring_service import RiskScoringService, RiskScoringResult
+from ..models import Finding, Severity
+from .risk_scoring_service import RiskScoringService
 from .heuristic_scorer import HeuristicScorer
 
 @dataclass
@@ -12,12 +12,12 @@ class PrioritizedFinding:
   finding: Finding
   base_score: float
   normalized_score: float
-
   final_score: float
+  final_severity: Severity
 
   ai_risk_score: float | None = None
   ai_fp_probability: float | None = None
-  ai_severity_label: str | None = None
+  ai_severity: Severity | None = None
   ai_rationale: str | None = None
 
 class RankingEngine:
@@ -29,27 +29,24 @@ class RankingEngine:
     self._risk_scorer = risk_scorer or RiskScoringService()
 
   def _severity_weight(self, pf: PrioritizedFinding) -> float:
-    return HeuristicScorer.SEVERITY_WEIGHTS.get(
-      pf.finding.confidence_normalized, 0.0
-    )
+    return HeuristicScorer.SEVERITY_WEIGHTS.get(pf.final_severity, 0.0)
 
   def rank(self, findings: list[Finding]) -> list[PrioritizedFinding]:
-    results: list[RiskScoringResult] = self._risk_scorer.score_findings(findings)
+    results = self._risk_scorer.score_findings(findings)
     prioritized: list[PrioritizedFinding] = []
 
     for r in results:
-      heuristic = r.heuristic
-      ai_score = r.ai_score
-
+      ai = r.ai_score
       pf = PrioritizedFinding(
         finding=r.finding,
-        base_score=heuristic.base_score,
-        normalized_score=heuristic.normalized_score,
-        ai_risk_score=ai_score.risk_score if ai_score is not None else None,
-        ai_fp_probability=ai_score.fp_probability if ai_score is not None else None,
-        ai_severity_label=ai_score.severity_label if ai_score is not None else None,
-        ai_rationale=ai_score.rationale if ai_score is not None else None,
+        base_score=r.heuristic.base_score,
+        normalized_score=r.heuristic.normalized_score,
         final_score=r.final_score,
+        final_severity=r.final_severity,
+        ai_risk_score=ai.risk_score if ai else None,
+        ai_fp_probability=ai.fp_probability if ai else None,
+        ai_severity=ai.severity if ai else None,
+        ai_rationale=ai.rationale if ai else None,
       )
       prioritized.append(pf)
 
@@ -61,5 +58,4 @@ class RankingEngine:
         pf.finding.line_start or 0,
       )
     )
-
     return prioritized

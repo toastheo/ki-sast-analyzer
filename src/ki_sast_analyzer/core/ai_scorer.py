@@ -11,7 +11,7 @@ import os
 
 from openai import OpenAI, APIError
 
-from ..models import Finding
+from ..models import Finding, Severity
 from .heuristic_scorer import HeuristicScore
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class AiScore:
   Estimated false positive probability for a finding.
   """
 
-  severity_label: Optional[str] = None
+  severity: Optional[Severity] = None
   """
   Optionally derived severity.
   """
@@ -46,6 +46,14 @@ class AiScore:
   """
   Optional free text explaining why the AI made this decision.
   """
+
+def _parse_severity(label: str | None) -> Optional[Severity]:
+  if not label:
+    return None
+  try:
+    return Severity[label.strip().upper()]
+  except KeyError:
+    return None
 
 class AiScorer(ABC):
   """
@@ -63,18 +71,12 @@ class DummyAiScorer(AiScorer):
 
   def score(self, finding: Finding, heuristic: HeuristicScore) -> AiScore:
     base = heuristic.normalized_score
-
-    if base >= 7.0:
-      fp_prob = 0.2
-    elif base >= 4.0:
-      fp_prob = 0.4
-    else:
-      fp_prob = 0.6
+    fp_prob = 0.2 if base >= 7.0 else (0.4 if base >= 4.0 else 0.6)
 
     return AiScore(
       risk_score=base,
       fp_probability=fp_prob,
-      severity_label=finding.confidence_normalized.value,
+      severity=heuristic.severity,
       rationale="Dummy AI: Derives the score directly from the heuristic model."
     )
 
@@ -110,6 +112,7 @@ class OpenAiScorer(AiScorer):
     """
     Calls the LLM and maps the result to AiScore.
     """
+
     try:
       payload = self._build_prompt_payload(finding, heuristic)
       raw_json = self._call_model(payload)
@@ -117,7 +120,8 @@ class OpenAiScorer(AiScorer):
 
       risk_score = float(data.get("risk_score", heuristic.normalized_score))
       fp_prob = float(data.get("fp_probability", 0.5))
-      severity_label = data.get("severity_label") or finding.confidence_normalized.value
+
+      sev = _parse_severity(data.get("severity_label")) or heuristic.severity
       rationale = data.get("rationale") or "No rationale provided by AI."
 
       risk_score = max(0.0, min(10.0, risk_score))
@@ -126,21 +130,16 @@ class OpenAiScorer(AiScorer):
       return AiScore(
         risk_score=risk_score,
         fp_probability=fp_prob,
-        severity_label=severity_label,
+        severity=sev,
         rationale=rationale,
       )
-
-    except(json.JSONDecodeError, KeyError, ValueError) as e:
-      logger.warning("Failed to parse OpenAI, response, falling back to heuristic: %s", e)
-    except APIError as e:
-      logger.warning("OpenAI API error, falling back to heuristic: %s", e)
     except Exception as e:
-      logger.warning("Unexpected error in OpenAiScorer, falling back to heuristic: %s", e)
+      logger.warning("OpenAiScorer failed, falling back: %s", e)
 
     return AiScore(
       risk_score=heuristic.normalized_score,
       fp_probability=0.5,
-      severity_label=finding.confidence_normalized.value,
+      severity=heuristic.severity,
       rationale="Fallback: Heuristic score only (OpenAI call failed).",
     )
 
@@ -186,8 +185,8 @@ class OpenAiScorer(AiScorer):
     parts.append(f"- Rule ID: {finding.rule_id}")
     parts.append(f"- Category: {finding.category}")
     parts.append(f"- Tool confidence: {finding.confidence_raw}")
-    parts.append(f"- Normalized confidence: {finding.confidence_normalized.value}")
-    parts.append(f"- Heuristic normalized_score (0-10): {heuristic.normalized_score:.2f}")
+    parts.append(f"- Normalized confidence: {finding.confidence.value}")
+    parts.append(f"- Heuristic severity: {heuristic.severity.value}")
     parts.append(f"- File path: {finding.file_path}")
     parts.append(f"- Line start: {finding.line_start}")
     parts.append(f"- Commit SHA: {finding.commit_sha}")

@@ -33,10 +33,10 @@ class ReportGenerator:
     lines.append("# KI-SAST-Analyzer Report\n")
     lines.append("")
     lines.append(
-      "| Score | Severity | Tool | File | Line | Rule | Category | AI Risk | AI FP | Message |"
+      "| Score | Severity | Confidence | Tool | File | Line | Rule | Category | AI Risk | AI FP | AI Sev | Message |"
     )
     lines.append(
-      "|-------|----------|------|------|------|------|----------|---------|-------|---------|"
+      "|-------|----------|------------|------|------|------|------|----------|---------|-------|--------|---------|"
     )
 
     for pf in prioritized:
@@ -56,10 +56,16 @@ class ReportGenerator:
         f"{pf.ai_fp_probability:.2f}" if pf.ai_fp_probability is not None else ""
       )
 
+      sev = pf.final_severity.value
+      conf = f.confidence.value
+
+      ai_sev_str = pf.ai_severity.value if pf.ai_severity is not None else ""
+
       lines.append(
-        "| {score:.1f} | {sev} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {msg} |".format(
+        "| {score:.1f} | {sev} | {conf} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {ai_sev} | {msg} |".format(
           score=score,
-          sev=self._md_escape(f.confidence_normalized.value),
+          sev=self._md_escape(sev),
+          conf=self._md_escape(conf),
           tool=self._md_escape(f.tool),
           file=self._md_escape(file_str),
           line=line_str,
@@ -67,6 +73,7 @@ class ReportGenerator:
           cat=self._md_escape(f.category or ""),
           ai_risk=ai_risk_str,
           ai_fp=ai_fp_str,
+          ai_sev=self._md_escape(ai_sev_str),
           msg=msg_short,
         )
       )
@@ -99,12 +106,13 @@ class ReportGenerator:
             "normalized_score": pf.normalized_score
           },
           "ai": {
-            "risk_score": pf.ai_risk_score,
-            "fp_probability": pf.ai_fp_probability,
-            "severity_label": pf.ai_severity_label,
-            "rationale": pf.ai_rationale,
-          },
-          "final_score": pf.final_score
+          "risk_score": pf.ai_risk_score,
+          "fp_probability": pf.ai_fp_probability,
+          "severity": pf.ai_severity.value if pf.ai_severity else None,
+          "rationale": pf.ai_rationale,
+        },
+        "final_score": pf.final_score,
+        "final_severity": pf.final_severity.value,
         },
       }
       data.append(entry)

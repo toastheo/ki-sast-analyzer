@@ -10,18 +10,30 @@ from ..input.brakeman_codes import BRAKEMAN_CODE_SYMBOLS
 
 @dataclass
 class HeuristicScore:
+  """
+  Deterministic baseline score for a single finding.
+  """
   finding_id: str
   severity: Severity
-  base_score: float          # unclamped, for debugging
-  normalized_score: float    # clamped to [0, 10]
+  base_score: float
+  """
+  Unclamped raw score, useful for debugging and transparency.
+  """
+  normalized_score: float
+  """
+  Final score clamped to [0, 10].
+  """
+
 
 class HeuristicScorer:
   """
   Deterministic baseline scorer.
-  Produces an interpretable 0..10 risk estimate (fallback + AI prior).
+
+  Produces an interpretable risk estimate on a 0..10 scale.
+  Intended as a reproducible fallback and as an AI prior.
   """
 
-  # Severity as an "anchor" on the same 0..10 scale as the AI score.
+  # Severity is the primary anchor on the same 0..10 scale as the AI score.
   SEVERITY_WEIGHTS: dict[Severity, float] = {
     Severity.CRITICAL: 9.0,
     Severity.HIGH: 7.0,
@@ -38,70 +50,68 @@ class HeuristicScorer:
     Confidence.UNKNOWN: 0.0,
   }
 
-  # Bounded bonuses
-  MAX_RULE_BONUS: float = 1.0
-  MAX_RECENCY_BONUS: float = 0.5
-  MAX_CONTEXT_BONUS: float = 0.5
-
   def __init__(self, now: Optional[datetime] = None) -> None:
     self._now = now or datetime.now(timezone.utc)
 
   def score(self, finding: Finding) -> HeuristicScore:
-    sev, rule_bonus = self._severity_and_rule_bonus(finding)
+    severity = self._severity(finding)
 
-    severity_base = self.SEVERITY_WEIGHTS.get(sev, self.SEVERITY_WEIGHTS[Severity.UNKNOWN])
+    severity_base = self.SEVERITY_WEIGHTS.get(
+      severity,
+      self.SEVERITY_WEIGHTS[Severity.UNKNOWN],
+    )
     recency_bonus = self._recency_bonus(finding)
     context_bonus = self._context_bonus(finding)
     confidence_adj = self.CONFIDENCE_ADJUST.get(finding.confidence, 0.0)
 
-    base_score = severity_base + rule_bonus + recency_bonus + context_bonus + confidence_adj
+    base_score = severity_base + recency_bonus + context_bonus + confidence_adj
     normalized_score = self._clamp_0_10(base_score)
 
     return HeuristicScore(
       finding_id=finding.id,
-      severity=sev,
+      severity=severity,
       base_score=base_score,
       normalized_score=normalized_score,
     )
 
   @staticmethod
-  def _clamp_0_10(x: float) -> float:
-    if x < 0.0:
+  def _clamp_0_10(value: float) -> float:
+    if value < 0.0:
       return 0.0
-    if x > 10.0:
+    if value > 10.0:
       return 10.0
-    return x
+    return value
 
-  # --- Severity + Rule bonus (no double counting) ---
+  # --- Severity derivation ---
 
-  def _severity_and_rule_bonus(self, finding: Finding) -> tuple[Severity, float]:
+  def _severity(self, finding: Finding) -> Severity:
     """
-    Determine severity primarily from known rule symbol (Brakeman),
-    otherwise fall back to keyword heuristics over category/message.
-    Returns (severity, rule_bonus).
+    Determine severity primarily from the known Brakeman rule symbol.
+    If unavailable, fall back to keyword heuristics over category/message.
     """
-
     symbol = self._brakeman_symbol(finding)
-    if symbol:
-      sev, bonus = self._classify_symbol(symbol)
-      return sev, bonus
+    if symbol is not None:
+      return self._classify_symbol(symbol)
 
-    sev = self._keyword_severity(finding.category, finding.message)
-    return sev, 0.0
+    return self._keyword_severity(finding.category, finding.message)
 
   def _brakeman_symbol(self, finding: Finding) -> str | None:
+    """
+    Returns the Brakeman warning symbol name for this finding, if possible.
+    """
     if not finding.rule_id:
       return None
+
     try:
       code = int(finding.rule_id)
     except ValueError:
       return None
+
     return BRAKEMAN_CODE_SYMBOLS.get(code)
 
-  def _classify_symbol(self, name: str) -> tuple[Severity, float]:
+  def _classify_symbol(self, name: str) -> Severity:
     """
-    Map known symbol families to (Severity, rule_bonus).
-    rule_bonus is ONLY used to differentiate within the same general band.
+    Classify Brakeman symbol names into coarse severity buckets.
     """
     n = name.lower()
 
@@ -120,9 +130,9 @@ class HeuristicScorer:
         "pathname_traversal",
       }
     ):
-      return Severity.CRITICAL, 1.0
+      return Severity.CRITICAL
 
-    # 2) classic web vulns / important issues
+    # 2) classic web vulnerabilities / important issues
     if (
       n.startswith("cross_site_scripting")
       or n.startswith("xss_")
@@ -144,9 +154,9 @@ class HeuristicScorer:
         "ransack_search",
       }
     ):
-      return Severity.HIGH, 0.5
+      return Severity.HIGH
 
-    # 3) hardening / crypto / eol / weaker but relevant
+    # 3) hardening / cryptography / EOL / weaker but relevant topics
     if n in {
       "eol_rails",
       "eol_ruby",
@@ -163,15 +173,18 @@ class HeuristicScorer:
       "http_cookies",
       "secure_cookies",
     }:
-      return Severity.MEDIUM, 0.25
+      return Severity.MEDIUM
 
-    return Severity.LOW, 0.0
+    return Severity.LOW
 
   @staticmethod
   def _keyword_severity(category: str | None, message: str) -> Severity:
+    """
+    Tool-agnostic fallback severity inference based on simple keywords.
+    Deliberately conservative and coarse.
+    """
     text = f"{category or ''} {message or ''}".lower()
 
-    # crude but robust tool-agnostic fallback
     if ("sql" in text and "inject" in text) or "command injection" in text or "remote code" in text:
       return Severity.CRITICAL
 
@@ -184,20 +197,18 @@ class HeuristicScorer:
     if "secret" in text or "token" in text or "password" in text or "weak hash" in text:
       return Severity.MEDIUM
 
-    # If we have literally no signal at all:
     if not category and not message:
       return Severity.UNKNOWN
 
     return Severity.LOW
 
-  # --- Recency (bounded small bonus) ---
+  # --- Recency bonus (small, bounded) ---
 
   def _recency_bonus(self, finding: Finding) -> float:
     if not finding.commit_date:
       return 0.0
 
     raw = finding.commit_date.strip()
-
     if raw.endswith("Z"):
       raw = raw[:-1] + "+00:00"
 
@@ -210,18 +221,18 @@ class HeuristicScorer:
       dt = dt.replace(tzinfo=timezone.utc)
 
     age_days = (self._now - dt).total_seconds() / 86400.0
-    if age_days < 0:
+    if age_days < 0.0:
       age_days = 0.0
 
-    if age_days <= 7:
+    if age_days <= 7.0:
       return 0.5
-    if age_days <= 30:
+    if age_days <= 30.0:
       return 0.25
-    if age_days <= 180:
+    if age_days <= 180.0:
       return 0.1
     return 0.0
 
-  # --- Context (bounded small bonus/malus) ---
+  # --- Context bonus/malus (small, bounded) ---
 
   def _context_bonus(self, finding: Finding) -> float:
     path = getattr(finding, "file_path", None)
@@ -233,24 +244,24 @@ class HeuristicScorer:
     else:
       p = str(path).replace("\\", "/").lower()
 
-    # de-prioritize non-prod / external code
+    # De-prioritize non-production / external code paths.
     if "/test/" in p or "/spec/" in p or "/features/" in p:
       return -0.5
     if "/vendor/" in p:
       return -0.25
 
-    # rough attack surface heuristic (Rails-ish but not insane)
+    # Rough attack-surface heuristic for Rails-ish projects.
     if "/app/controllers/" in p:
       return 0.5
 
-    if any(x in p for x in ["/app/models/", "/app/views/", "/app/channels/", "/app/mailers/"]):
+    if any(x in p for x in ("/app/models/", "/app/views/", "/app/channels/", "/app/mailers/")):
       return 0.25
 
-    if any(x in p for x in ["/app/jobs/", "/app/services/", "/lib/"]):
+    if any(x in p for x in ("/app/jobs/", "/app/services/", "/lib/")):
       return 0.15
 
-    # config/migrations are often lower “direct exploitability”
-    if any(x in p for x in ["/config/", "/db/migrate/"]):
+    # Config/migrations often have lower direct exploitability.
+    if any(x in p for x in ("/config/", "/db/migrate/")):
       return 0.05
 
     return 0.0

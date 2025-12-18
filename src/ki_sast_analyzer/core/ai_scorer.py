@@ -37,17 +37,17 @@ class AiScore:
   Estimated false positive probability for a finding.
   """
 
-  severity: Optional[Severity] = None
+  severity: Severity
   """
-  Optionally derived severity.
-  """
-
-  rationale: Optional[str] = None
-  """
-  Optional free text explaining why the AI made this decision.
+  Derived severity.
   """
 
-def _parse_severity(label: str | None) -> Optional[Severity]:
+  rationale: str
+  """
+  Free text explaining why the AI made this decision.
+  """
+
+def _parse_severity(label: str | None) -> Severity | None:
   if not label:
     return None
   try:

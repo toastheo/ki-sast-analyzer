@@ -105,15 +105,8 @@ def main(argv: list[str] | None = None) -> None:
       context_files=config.context_files,
     )
 
-  # Mix heuristic + ai:
-  # alpha -> heuristic
-  # beta -> ai-risk
-  # gamma -> false positive probability
   risk_scorer = RiskScoringService(
-    ai_scorer=ai_scorer,
-    alpha=0.4,
-    beta=0.5,
-    gamma=0.6,
+    ai_scorer=ai_scorer
   )
 
   ranking = RankingEngine(risk_scorer)

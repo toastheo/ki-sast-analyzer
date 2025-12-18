@@ -12,6 +12,7 @@ class PrioritizedFinding:
   finding: Finding
   base_score: float
   normalized_score: float
+
   final_score: float
   final_severity: Severity
 
@@ -50,9 +51,14 @@ class RankingEngine:
       )
       prioritized.append(pf)
 
+    # Sorting logic:
+    # 1) Higher risk first (final_score = AI risk_score if AI exists)
+    # 2) Lower FP probability first (if AI exists)
+    # 3) Severity weight
     prioritized.sort(
       key=lambda pf: (
         -pf.final_score,
+        (pf.ai_fp_probability if pf.ai_fp_probability is not None else 1.0),
         -self._severity_weight(pf),
         str(pf.finding.file_path or ""),
         pf.finding.line_start or 0,

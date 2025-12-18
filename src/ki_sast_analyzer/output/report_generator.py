@@ -33,15 +33,14 @@ class ReportGenerator:
     lines.append("# KI-SAST-Analyzer Report\n")
     lines.append("")
     lines.append(
-      "| Score | Severity | Confidence | Tool | File | Line | Rule | Category | AI Risk | AI FP | AI Sev | Message |"
+      "| Risk | FP Prob | Severity | Confidence | Tool | File | Line | Rule | Category | Heuristic | Message |"
     )
     lines.append(
-      "|-------|----------|------------|------|------|------|------|----------|---------|-------|--------|---------|"
+      "|------|---------|----------|------------|------|------|------|------|----------|-----------|---------|"
     )
 
     for pf in prioritized:
       f: Finding = pf.finding
-      score = pf.final_score
 
       file_str = str(f.file_path) if f.file_path is not None else ""
       line_str = str(f.line_start) if f.line_start is not None else ""
@@ -49,39 +48,32 @@ class ReportGenerator:
       if len(msg_short) > 80:
         msg_short = msg_short[:77] + "..."
 
-      ai_risk_str = (
-        f"{pf.ai_risk_score:.1f}" if pf.ai_risk_score is not None else ""
-      )
-      ai_fp_str = (
-        f"{pf.ai_fp_probability:.2f}" if pf.ai_fp_probability is not None else ""
-      )
-
-      sev = pf.final_severity.value
-      conf = f.confidence.value
-
-      ai_sev_str = pf.ai_severity.value if pf.ai_severity is not None else ""
+      risk = pf.final_score
+      fp_str = f"{pf.ai_fp_probability:.2f}" if pf.ai_fp_probability is not None else ""
+      heur_str = f"{pf.normalized_score:.1f}"
 
       lines.append(
-        "| {score:.1f} | {sev} | {conf} | {tool} | {file} | {line} | {rule} | {cat} | {ai_risk} | {ai_fp} | {ai_sev} | {msg} |".format(
-          score=score,
-          sev=self._md_escape(sev),
-          conf=self._md_escape(conf),
+        "| {risk:.1f} | {fp} | {sev} | {conf} | {tool} | {file} | {line} | {rule} | {cat} | {heur} | {msg} |".format(
+          risk=risk,
+          fp=fp_str,
+          sev=self._md_escape(pf.final_severity.value),
+          conf=self._md_escape(f.confidence.value),
           tool=self._md_escape(f.tool),
           file=self._md_escape(file_str),
           line=line_str,
           rule=self._md_escape(f.rule_id or ""),
           cat=self._md_escape(f.category or ""),
-          ai_risk=ai_risk_str,
-          ai_fp=ai_fp_str,
-          ai_sev=self._md_escape(ai_sev_str),
+          heur=heur_str,
           msg=msg_short,
         )
       )
 
     lines.append("")
-    lines.append("_Score = final combined score (0-10), "
-                 "AI Risk = AI risk assessment (0-10), "
-                 "AI FP = estimated false positive probability (0-1)._")
+    lines.append(
+      "_Risk = AI risk_score (0-10) if available, otherwise heuristic fallback. "
+      "FP Prob = AI false-positive probability (0-1). "
+      "Heuristic is informational / fallback only._"
+    )
     lines.append("")
 
     content = "\n".join(lines) + "\n"
@@ -106,15 +98,19 @@ class ReportGenerator:
             "normalized_score": pf.normalized_score
           },
           "ai": {
-          "risk_score": pf.ai_risk_score,
-          "fp_probability": pf.ai_fp_probability,
-          "severity": pf.ai_severity.value if pf.ai_severity else None,
-          "rationale": pf.ai_rationale,
+            "risk_score": pf.ai_risk_score,
+            "fp_probability": pf.ai_fp_probability,
+            "severity": pf.ai_severity.value if pf.ai_severity else None,
+            "rationale": pf.ai_rationale,
+          },
+          "final": {
+            "risk_score": pf.final_score,
+            "fp_probability": pf.ai_fp_probability,
+            "severity": pf.final_severity.value,
+            "basis": "ai" if pf.ai_risk_score is not None else "heuristic_fallback",
+          },
         },
-        "final_score": pf.final_score,
-        "final_severity": pf.final_severity.value,
-        },
-      }
+      },
       data.append(entry)
 
     p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

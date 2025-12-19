@@ -110,7 +110,7 @@ class ReportGenerator:
             "basis": "ai" if pf.ai_risk_score is not None else "heuristic_fallback",
           },
         },
-      },
+      }
       data.append(entry)
 
     p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
